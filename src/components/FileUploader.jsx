@@ -7,6 +7,8 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, FileText, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const FileUploader = () => {
   const [files, setFiles] = useState([]);
@@ -30,18 +32,34 @@ const FileUploader = () => {
     setDragActive(false);
     
     const newFiles = Array.from(event.dataTransfer.files);
-    setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+    setFiles((prevFiles) => {
+      // add previews for each new file
+      newFiles.forEach((f) => {
+        const url = URL.createObjectURL(f);
+        setLoadingStatuses((prev) => ({ ...prev, [f.name]: { ...(prev[f.name] || {}), preview: url } }));
+      });
+      return [...prevFiles, ...newFiles];
+    });
   };
 
   const handleFileChange = (event) => {
     const newFiles = Array.from(event.target.files);
-    setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+    setFiles((prevFiles) => {
+      newFiles.forEach((f) => {
+        const url = URL.createObjectURL(f);
+        setLoadingStatuses((prev) => ({ ...prev, [f.name]: { ...(prev[f.name] || {}), preview: url } }));
+      });
+      return [...prevFiles, ...newFiles];
+    });
   };
 
   const removeFile = (fileName) => {
     setFiles((prevFiles) => prevFiles.filter(file => file.name !== fileName));
     setLoadingStatuses((prev) => {
       const newStatuses = { ...prev };
+      if (newStatuses[fileName]?.preview) {
+        try { URL.revokeObjectURL(newStatuses[fileName].preview); } catch (e) {}
+      }
       delete newStatuses[fileName];
       return newStatuses;
     });
@@ -53,7 +71,7 @@ const FileUploader = () => {
 
     setLoadingStatuses((prev) => ({
       ...prev,
-      [file.name]: { status: 'loading', progress: 0 },
+      [file.name]: { ...(prev[file.name] || {}), status: 'loading', progress: 0 },
     }));
 
     try {
@@ -72,24 +90,29 @@ const FileUploader = () => {
       
       setLoadingStatuses((prev) => ({
         ...prev,
-        [file.name]: { status: 'completed', data: response.data, detailsVisible: false },
+        [file.name]: { ...(prev[file.name] || {}), status: 'completed', data: response.data, detailsVisible: false },
       }));
     } catch (error) {
       setLoadingStatuses((prev) => ({
         ...prev,
-        [file.name]: { status: 'error', error: error.message, detailsVisible: false },
+        [file.name]: { ...(prev[file.name] || {}), status: 'error', error: error.message, detailsVisible: false },
       }));
     }
   };
 
   const toggleDetails = (fileName) => {
-    setLoadingStatuses((prev) => ({
-      ...prev,
-      [fileName]: { 
-        ...prev[fileName], 
-        detailsVisible: !prev[fileName]?.detailsVisible 
-      },
-    }));
+    setLoadingStatuses((prev) => {
+      const currently = prev[fileName];
+      const newVisible = !currently?.detailsVisible;
+      return {
+        ...prev,
+        [fileName]: {
+          ...currently,
+          detailsVisible: newVisible,
+          activeTab: currently?.activeTab || (currently?.preview ? 'image' : 'json'),
+        },
+      };
+    });
   };
 
   const formatFileSize = (bytes) => {
@@ -113,6 +136,23 @@ const FileUploader = () => {
     }
   };
 
+  const generateMarkdown = (data) => {
+    if (!data) return 'No content';
+    if (typeof data === 'string') return data;
+    try {
+      let md = '';
+      if (Array.isArray(data.results)) {
+        md += data.results
+          .map((item, i) => `${item.markdown.markdown_texts || ``}`)
+          .join('\n');
+        return md;
+      }
+      return md || String(data);
+    } catch (e) {
+      return String(data);
+    }
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto p-6 space-y-6">
       <Card>
@@ -121,9 +161,6 @@ const FileUploader = () => {
             <Upload className="w-6 h-6" />
             Document Analyzer
           </CardTitle>
-          <CardDescription>
-            Upload your documents for intelligent analysis and processing
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <div
@@ -157,17 +194,8 @@ const FileUploader = () => {
                 <p className="text-sm text-muted-foreground mt-1">
                   or click to browse from your computer
                 </p>
+                <br/>
               </div>
-              <Button 
-                variant="secondary" 
-                size="sm" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  fileInputRef.current?.click();
-                }}
-              >
-                Browse Files
-              </Button>
             </div>
           </div>
         </CardContent>
@@ -185,6 +213,12 @@ const FileUploader = () => {
                 variant="ghost" 
                 size="sm"
                 onClick={() => {
+                  // revoke any previews
+                  Object.values(loadingStatuses).forEach(s => {
+                    if (s?.preview) {
+                      try { URL.revokeObjectURL(s.preview); } catch (e) {}
+                    }
+                  });
                   setFiles([]);
                   setLoadingStatuses({});
                 }}
@@ -194,7 +228,7 @@ const FileUploader = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[500px] pr-4">
+            <ScrollArea className="pr-4">
               <div className="space-y-4">
                 {files.map((file, index) => {
                   const status = loadingStatuses[file.name];
@@ -226,7 +260,7 @@ const FileUploader = () => {
                           </div>
                           
                           <div className="flex items-center gap-2">
-                            {!status || status.status === 'error' ? (
+                            {( !status || (status.status !== 'loading' && status.status !== 'completed') ) && (
                               <Button
                                 onClick={() => analyzeFile(file)}
                                 size="sm"
@@ -241,9 +275,9 @@ const FileUploader = () => {
                                   'Analyze'
                                 )}
                               </Button>
-                            ) : null}
+                            )}
                             
-                            {status && (status.status === 'completed' || status.status === 'error') && (
+                            {status && (status.preview || status.status === 'completed' || status.status === 'error') && (
                               <Button
                                 onClick={() => toggleDetails(file.name)}
                                 variant="outline"
@@ -284,11 +318,51 @@ const FileUploader = () => {
                                 </AlertDescription>
                               </Alert>
                             ) : (
-                              <ScrollArea className="h-[500px] w-full rounded-md border">
-                                <pre className="p-4 text-xs text-left whitespace-pre-wrap break-words overflow-x-auto">
-                                  {JSON.stringify(status.data, null, 2)}
-                                </pre>
-                              </ScrollArea>
+                              <>
+                                <Tabs
+                                  value={status?.activeTab || 'json'}
+                                  onValueChange={(val) => setLoadingStatuses(prev => ({
+                                    ...prev,
+                                    [file.name]: { ...prev[file.name], activeTab: val }
+                                  }))}
+                                >
+                                  <TabsList>
+                                    <TabsTrigger value="markdown">Markdown</TabsTrigger>
+                                    <TabsTrigger value="json">JSON</TabsTrigger>
+                                    <TabsTrigger value="image">Original image</TabsTrigger>
+                                  </TabsList>
+
+                                  <TabsContent value="markdown">
+                                    <ScrollArea className="h-[200px] w-full rounded-md border">
+                                      <div className="p-4 text-sm text-left prose max-w-none">
+                                        <ReactMarkdown>{generateMarkdown(status.data)}</ReactMarkdown>
+                                      </div>
+                                    </ScrollArea>
+                                  </TabsContent>
+
+                                  <TabsContent value="json">
+                                    <ScrollArea className="h-[200px] w-full rounded-md border">
+                                      <pre className="p-4 text-xs text-left whitespace-pre-wrap break-words overflow-x-auto">
+                                        {JSON.stringify(status.data, null, 2)}
+                                      </pre>
+                                    </ScrollArea>
+                                  </TabsContent>
+
+                                  <TabsContent value="image">
+                                    <div className="w-full flex items-center justify-center p-4">
+                                      {status?.preview ? (
+                                        <img src={status.preview} alt={file.name} className="max-h-[300px] max-w-full object-contain" />
+                                      ) : status.data?.imageUrl ? (
+                                        <img src={status.data.imageUrl} alt={file.name} className="max-h-[300px] max-w-full object-contain" />
+                                      ) : status.data?.image ? (
+                                        <img src={`data:image/*;base64,${status.data.image}`} alt={file.name} className="max-h-[300px] max-w-full object-contain" />
+                                      ) : (
+                                        <p className="text-sm text-muted-foreground">No image available</p>
+                                      )}
+                                    </div>
+                                  </TabsContent>
+                                </Tabs>
+                              </>
                             )}
                           </div>
                         )}
