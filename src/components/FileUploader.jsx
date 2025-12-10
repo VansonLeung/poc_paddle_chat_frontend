@@ -16,6 +16,39 @@ import {
   getImageSourceFromStatus,
 } from '@/lib/resultParsing';
 
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+};
+
+const getStatusBadge = (status) => {
+  switch (status?.status) {
+    case 'loading':
+      return (
+        <Badge variant="outline" className="bg-blue-50">
+          <Loader2 className="w-3 h-3 mr-1 animate-spin" />Analyzing
+        </Badge>
+      );
+    case 'completed':
+      return (
+        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+          <CheckCircle2 className="w-3 h-3 mr-1" />Completed
+        </Badge>
+      );
+    case 'error':
+      return (
+        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+          <XCircle className="w-3 h-3 mr-1" />Error
+        </Badge>
+      );
+    default:
+      return <Badge variant="secondary">Ready</Badge>;
+  }
+};
+
 const FileUploader = () => {
   const [files, setFiles] = useState([]);
   const [loadingStatuses, setLoadingStatuses] = useState({});
@@ -119,44 +152,6 @@ const FileUploader = () => {
         },
       };
     });
-  };
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  };
-
-  const getStatusBadge = (status) => {
-    switch (status?.status) {
-      case 'loading':
-        return <Badge variant="outline" className="bg-blue-50"><Loader2 className="w-3 h-3 mr-1 animate-spin" />Analyzing</Badge>;
-      case 'completed':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200"><CheckCircle2 className="w-3 h-3 mr-1" />Completed</Badge>;
-      case 'error':
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200"><XCircle className="w-3 h-3 mr-1" />Error</Badge>;
-      default:
-        return <Badge variant="secondary">Ready</Badge>;
-    }
-  };
-
-  const generateMarkdown = (data) => {
-    if (!data) return 'No content';
-    if (typeof data === 'string') return data;
-    try {
-      let md = '';
-      if (Array.isArray(data.results)) {
-        md += data.results
-          .map((item, i) => `${item.markdown.markdown_texts || ``}`)
-          .join('\n');
-        return md;
-      }
-      return md || String(data);
-    } catch (e) {
-      return String(data);
-    }
   };
 
   return (
