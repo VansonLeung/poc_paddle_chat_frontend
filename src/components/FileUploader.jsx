@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, FileText, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import DocumentPageViewer from '@/components/DocumentPageViewer';
 import {
@@ -347,7 +348,9 @@ const UploadedFileCard = ({ file, status, onAnalyze, onToggleDetails, onRemove, 
                 <TabsContent value="markdown">
                   <ScrollArea className="h-[420px] w-full rounded-md border">
                     <div className="markdown-content">
-                      <ReactMarkdown>{generateMarkdown(status?.data)}</ReactMarkdown>
+                      <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                        {generateMarkdown(status?.data)}
+                      </ReactMarkdown>
                     </div>
                   </ScrollArea>
                 </TabsContent>

@@ -101,8 +101,11 @@ const DocumentPageViewer = ({
   }
 
   const hasBoxes = Array.isArray(currentPage?.boxes) && currentPage.boxes.length > 0;
-  const widthRef = currentPage?.pageWidth || imageMetrics.naturalWidth || imageMetrics.renderedWidth || 1;
-  const heightRef = currentPage?.pageHeight || imageMetrics.naturalHeight || imageMetrics.renderedHeight || 1;
+  const widthRef = imageMetrics.naturalWidth;
+  const heightRef = imageMetrics.naturalHeight;
+
+  console.log("XXX", currentPage?.pageWidth, imageMetrics.naturalWidth, imageMetrics.renderedWidth, widthRef);
+  console.log("ZZZ", widthRef, heightRef);
 
   const pdfNeedsRender = isPdfDocument && pdfSource && !currentPage?.imageSrc && !renderedPdfImage;
 
@@ -177,6 +180,8 @@ const DocumentPageViewer = ({
                 const top = (y1 / heightRef) * 100;
                 const width = ((x2 - x1) / widthRef) * 100;
                 const height = ((y2 - y1) / heightRef) * 100;
+
+                console.log("YYY", widthRef, heightRef, x1, y1, x2, y2, left, top, width, height);
 
                 return (
                   <div
