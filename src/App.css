@@ -40,3 +40,72 @@
 .read-the-docs {
   color: #888;
 }
+
+.markdown-content {
+  padding: 1rem;
+  text-align: left;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: hsl(var(--foreground, 0 0% 10%));
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.markdown-content h1 { font-size: 1.6rem; }
+.markdown-content h2 { font-size: 1.4rem; }
+.markdown-content h3 { font-size: 1.2rem; }
+
+.markdown-content p {
+  margin-bottom: 1rem;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+}
+
+.markdown-content em {
+  font-style: italic;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+  padding-left: 0.5rem;
+}
+
+.markdown-content li {
+  margin-bottom: 0.35rem;
+}
+
+.markdown-content blockquote {
+  margin: 1rem 0;
+  padding-left: 1rem;
+  border-left: 4px solid hsl(var(--primary, 222 47% 11%));
+  color: hsl(var(--muted-foreground, 215 20% 65%));
+  font-style: italic;
+}
+
+.markdown-content code {
+  background-color: rgba(15, 23, 42, 0.08);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+}
+
+.markdown-content pre {
+  background-color: rgba(15, 23, 42, 0.08);
+  padding: 1rem;
+  overflow-x: auto;
+  border-radius: 0.5rem;
+}

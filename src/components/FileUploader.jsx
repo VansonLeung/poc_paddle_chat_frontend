@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,6 +9,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, FileText, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import DocumentPageViewer from '@/components/DocumentPageViewer';
+import {
+  extractBoundingPages,
+  generateMarkdown,
+  getImageSourceFromStatus,
+} from '@/lib/resultParsing';
 
 const FileUploader = () => {
   const [files, setFiles] = useState([]);
@@ -230,146 +236,20 @@ const FileUploader = () => {
           <CardContent>
             <ScrollArea className="pr-4">
               <div className="space-y-4">
-                {files.map((file, index) => {
-                  const status = loadingStatuses[file.name];
-                  return (
-                    <Card key={`${file.name}-${index}`} className="overflow-hidden">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-3 flex-1 min-w-0">
-                            <div className="p-2 rounded-lg bg-primary/10 mt-1">
-                              <FileText className="w-5 h-5 text-primary" />
-                            </div>
-                            <div className="flex-1 min-w-0 space-y-1">
-                              <p className="font-medium truncate text-left">{file.name}</p>
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span>{formatFileSize(file.size)}</span>
-                                <span>•</span>
-                                {getStatusBadge(status)}
-                              </div>
-                              
-                              {status?.status === 'loading' && (
-                                <div className="space-y-1 mt-2">
-                                  <Progress value={status.progress || 0} className="h-2" />
-                                  <p className="text-xs text-muted-foreground">
-                                    {status.progress || 0}% uploaded
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            {( !status || (status.status !== 'loading' && status.status !== 'completed') ) && (
-                              <Button
-                                onClick={() => analyzeFile(file)}
-                                size="sm"
-                                disabled={status?.status === 'loading'}
-                              >
-                                {status?.status === 'loading' ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Analyzing
-                                  </>
-                                ) : (
-                                  'Analyze'
-                                )}
-                              </Button>
-                            )}
-                            
-                            {status && (status.preview || status.status === 'completed' || status.status === 'error') && (
-                              <Button
-                                onClick={() => toggleDetails(file.name)}
-                                variant="outline"
-                                size="sm"
-                              >
-                                {status.detailsVisible ? (
-                                  <>
-                                    <ChevronUp className="w-4 h-4 mr-1" />
-                                    Hide
-                                  </>
-                                ) : (
-                                  <>
-                                    <ChevronDown className="w-4 h-4 mr-1" />
-                                    Details
-                                  </>
-                                )}
-                              </Button>
-                            )}
-                            
-                            <Button
-                              onClick={() => removeFile(file.name)}
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        {status?.detailsVisible && (
-                          <div className="mt-4 pt-4 border-t">
-                            {status.status === 'error' ? (
-                              <Alert variant="destructive">
-                                <XCircle className="h-4 w-4" />
-                                <AlertDescription>
-                                  {status.error}
-                                </AlertDescription>
-                              </Alert>
-                            ) : (
-                              <>
-                                <Tabs
-                                  value={status?.activeTab || 'json'}
-                                  onValueChange={(val) => setLoadingStatuses(prev => ({
-                                    ...prev,
-                                    [file.name]: { ...prev[file.name], activeTab: val }
-                                  }))}
-                                >
-                                  <TabsList>
-                                    <TabsTrigger value="markdown">Markdown</TabsTrigger>
-                                    <TabsTrigger value="json">JSON</TabsTrigger>
-                                    <TabsTrigger value="image">Original image</TabsTrigger>
-                                  </TabsList>
-
-                                  <TabsContent value="markdown">
-                                    <ScrollArea className="h-[200px] w-full rounded-md border">
-                                      <div className="p-4 text-sm text-left prose max-w-none">
-                                        <ReactMarkdown>{generateMarkdown(status.data)}</ReactMarkdown>
-                                      </div>
-                                    </ScrollArea>
-                                  </TabsContent>
-
-                                  <TabsContent value="json">
-                                    <ScrollArea className="h-[200px] w-full rounded-md border">
-                                      <pre className="p-4 text-xs text-left whitespace-pre-wrap break-words overflow-x-auto">
-                                        {JSON.stringify(status.data, null, 2)}
-                                      </pre>
-                                    </ScrollArea>
-                                  </TabsContent>
-
-                                  <TabsContent value="image">
-                                    <div className="w-full flex items-center justify-center p-4">
-                                      {status?.preview ? (
-                                        <img src={status.preview} alt={file.name} className="max-h-[300px] max-w-full object-contain" />
-                                      ) : status.data?.imageUrl ? (
-                                        <img src={status.data.imageUrl} alt={file.name} className="max-h-[300px] max-w-full object-contain" />
-                                      ) : status.data?.image ? (
-                                        <img src={`data:image/*;base64,${status.data.image}`} alt={file.name} className="max-h-[300px] max-w-full object-contain" />
-                                      ) : (
-                                        <p className="text-sm text-muted-foreground">No image available</p>
-                                      )}
-                                    </div>
-                                  </TabsContent>
-                                </Tabs>
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                {files.map((file) => (
+                  <UploadedFileCard
+                    key={file.name}
+                    file={file}
+                    status={loadingStatuses[file.name]}
+                    onAnalyze={() => analyzeFile(file)}
+                    onToggleDetails={() => toggleDetails(file.name)}
+                    onRemove={() => removeFile(file.name)}
+                    onTabChange={(tab) => setLoadingStatuses((prev) => ({
+                      ...prev,
+                      [file.name]: { ...prev[file.name], activeTab: tab },
+                    }))}
+                  />
+                ))}
               </div>
             </ScrollArea>
           </CardContent>
@@ -380,3 +260,140 @@ const FileUploader = () => {
 };
 
 export default FileUploader;
+
+const UploadedFileCard = ({ file, status, onAnalyze, onToggleDetails, onRemove, onTabChange }) => {
+  const boundingPages = React.useMemo(() => extractBoundingPages(status?.data), [status?.data]);
+  const imageSrc = React.useMemo(() => getImageSourceFromStatus(status), [status]);
+  const previewUrl = status?.preview || null;
+  const isPdfDocument = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf');
+
+  const canAnalyze = !status || (status.status !== 'loading' && status.status !== 'completed');
+  const canShowDetails = status && (status.preview || status.status === 'completed' || status.status === 'error');
+
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className="p-2 rounded-lg bg-primary/10 mt-1">
+              <FileText className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0 space-y-1">
+              <p className="font-medium truncate text-left">{file.name}</p>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>{formatFileSize(file.size)}</span>
+                <span>•</span>
+                {getStatusBadge(status)}
+              </div>
+
+              {status?.status === 'loading' && (
+                <div className="space-y-1 mt-2">
+                  <Progress value={status.progress || 0} className="h-2" />
+                  <p className="text-xs text-muted-foreground">
+                    {status.progress || 0}% uploaded
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {canAnalyze && (
+              <Button onClick={onAnalyze} size="sm" disabled={status?.status === 'loading'}>
+                {status?.status === 'loading' ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Analyzing
+                  </>
+                ) : (
+                  'Analyze'
+                )}
+              </Button>
+            )}
+
+            {canShowDetails && (
+              <Button onClick={onToggleDetails} variant="outline" size="sm">
+                {status?.detailsVisible ? (
+                  <>
+                    <ChevronUp className="w-4 h-4 mr-1" />
+                    Hide
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-4 h-4 mr-1" />
+                    Details
+                  </>
+                )}
+              </Button>
+            )}
+
+            <Button onClick={onRemove} variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        {status?.detailsVisible && (
+          <div className="mt-4 pt-4 border-t">
+            {status.status === 'error' ? (
+              <Alert variant="destructive">
+                <XCircle className="h-4 w-4" />
+                <AlertDescription>{status.error}</AlertDescription>
+              </Alert>
+            ) : (
+              <Tabs value={status?.activeTab || 'json'} onValueChange={onTabChange}>
+                <TabsList>
+                  <TabsTrigger value="markdown">Markdown</TabsTrigger>
+                  <TabsTrigger value="json">JSON</TabsTrigger>
+                  <TabsTrigger value="image">Original image</TabsTrigger>
+                  <TabsTrigger value="overlay">Overlay</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="markdown">
+                  <ScrollArea className="h-[420px] w-full rounded-md border">
+                    <div className="markdown-content">
+                      <ReactMarkdown>{generateMarkdown(status?.data)}</ReactMarkdown>
+                    </div>
+                  </ScrollArea>
+                </TabsContent>
+
+                <TabsContent value="json">
+                  <ScrollArea className="h-[420px] w-full rounded-md border">
+                    <pre className="p-4 text-xs text-left whitespace-pre-wrap break-words overflow-x-auto">
+                      {JSON.stringify(status?.data, null, 2)}
+                    </pre>
+                  </ScrollArea>
+                </TabsContent>
+
+                <TabsContent value="image">
+                  <div className="w-full p-4">
+                    <DocumentPageViewer
+                      pageInfos={boundingPages}
+                      fallbackImage={imageSrc}
+                      pdfSource={isPdfDocument ? previewUrl : null}
+                      isPdfDocument={isPdfDocument}
+                      maxHeight="460px"
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="overlay">
+                  <div className="w-full p-4">
+                    <DocumentPageViewer
+                      pageInfos={boundingPages}
+                      fallbackImage={imageSrc}
+                      pdfSource={isPdfDocument ? previewUrl : null}
+                      isPdfDocument={isPdfDocument}
+                      showOverlay
+                      maxHeight="540px"
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
