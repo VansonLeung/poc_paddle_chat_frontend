@@ -115,7 +115,7 @@ const FileUploader = () => {
     }));
 
     try {
-      const response = await axios.post('http://192.168.2.126:18200/doc_parser', formData, {
+      const response = await axios.post('https://ocr-v-api.octopus-tech.com/doc_parser', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
